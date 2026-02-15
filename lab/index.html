@@ -1,27 +1,634 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="de">
 <head>
-  <title>BeutelsHub Lab</title>
-  <meta charset="UTF-8">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Lab | Beutelshub</title>
+  <meta name="description" content="Beutelshub Lab: Spielwiese, Tools und Experimente." />
+
+  <style>
+    /* ========== Base ========== */
+    :root{
+      --bg0:#070910;
+      --bg1:#0b1020;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.10);
+      --text:#e9eeff;
+      --muted:#a9b3d6;
+      --line: rgba(255,255,255,.10);
+
+      --a:#7c4dff; /* violet */
+      --b:#00d4ff; /* cyan */
+      --c:#2dff8f; /* mint */
+
+      --shadow: 0 18px 50px rgba(0,0,0,.55);
+      --radius: 18px;
+      --radius2: 26px;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font: 500 16px/1.55 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text);
+      background:
+        radial-gradient(1100px 700px at 18% 12%, rgba(124,77,255,.35), transparent 55%),
+        radial-gradient(900px 600px at 78% 22%, rgba(0,212,255,.26), transparent 55%),
+        radial-gradient(1100px 760px at 55% 85%, rgba(45,255,143,.16), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1) 60%, #060712);
+      overflow-x:hidden;
+    }
+
+    a{ color:inherit; text-decoration:none; }
+    .wrap{ max-width:1100px; margin:0 auto; padding:32px 18px 54px; }
+
+    /* ========== Top Bar / Header ========== */
+    .top{
+      position:relative;
+      padding: 10px 0 28px;
+    }
+
+    .brand{
+      display:flex; align-items:center; gap:12px;
+      user-select:none;
+    }
+
+    .logo{
+      width:42px; height:42px; border-radius:14px;
+      background:
+        radial-gradient(circle at 35% 35%, rgba(255,255,255,.25), transparent 55%),
+        linear-gradient(135deg, rgba(124,77,255,.95), rgba(0,212,255,.85));
+      box-shadow: 0 10px 30px rgba(124,77,255,.18), 0 10px 30px rgba(0,212,255,.10);
+      border: 1px solid rgba(255,255,255,.16);
+      position:relative;
+      overflow:hidden;
+    }
+    .logo::after{
+      content:"";
+      position:absolute; inset:-40%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.22), transparent);
+      transform: rotate(25deg);
+      animation: sheen 6s linear infinite;
+      opacity:.75;
+    }
+    @keyframes sheen{
+      0%{ transform: translateX(-30%) rotate(25deg); }
+      100%{ transform: translateX(30%) rotate(25deg); }
+    }
+
+    .brand h1{
+      margin:0;
+      font-size: 18px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color: rgba(233,238,255,.92);
+    }
+    .brand .sub{
+      display:block;
+      font-size:12px;
+      letter-spacing:.12em;
+      color:var(--muted);
+      margin-top:2px;
+      text-transform:uppercase;
+    }
+
+    .hero{
+      margin-top: 22px;
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap:18px;
+      align-items:stretch;
+    }
+    @media (max-width: 880px){
+      .hero{ grid-template-columns: 1fr; }
+    }
+
+    .panel{
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+      border-radius: var(--radius2);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      position:relative;
+      overflow:hidden;
+      backdrop-filter: blur(10px);
+    }
+    .panel::before{
+      content:"";
+      position:absolute; inset:-2px;
+      background:
+        radial-gradient(600px 220px at 20% 10%, rgba(124,77,255,.25), transparent 60%),
+        radial-gradient(520px 220px at 80% 20%, rgba(0,212,255,.18), transparent 60%),
+        radial-gradient(520px 260px at 50% 100%, rgba(45,255,143,.12), transparent 65%);
+      pointer-events:none;
+    }
+    .panel > *{ position:relative; }
+
+    .title{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+      margin-bottom: 10px;
+    }
+    .title h2{
+      margin:0;
+      font-size: 26px;
+      letter-spacing:.01em;
+    }
+    .title p{
+      margin:8px 0 0;
+      color: var(--muted);
+      max-width: 62ch;
+    }
+
+    .badge{
+      font-size:12px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      padding:10px 12px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: rgba(233,238,255,.90);
+      white-space:nowrap;
+    }
+
+    .controls{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top: 14px;
+      align-items:center;
+    }
+
+    .search{
+      flex: 1 1 280px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      padding: 12px 12px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+    }
+    .search svg{ flex:0 0 auto; opacity:.9; }
+    .search input{
+      width:100%;
+      border:0;
+      outline:0;
+      background: transparent;
+      color: var(--text);
+      font-size: 14px;
+    }
+    .search input::placeholder{ color: rgba(169,179,214,.75); }
+
+    .chips{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .chip{
+      cursor:pointer;
+      border-radius: 999px;
+      padding: 10px 12px;
+      font-size:12px;
+      letter-spacing:.10em;
+      text-transform:uppercase;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+      color: rgba(233,238,255,.90);
+      transition: transform .14s ease, background .14s ease, border-color .14s ease;
+      user-select:none;
+    }
+    .chip:hover{ transform: translateY(-1px); background: rgba(255,255,255,.08); }
+    .chip[data-active="true"]{
+      background: linear-gradient(90deg, rgba(124,77,255,.35), rgba(0,212,255,.25));
+      border-color: rgba(0,212,255,.40);
+      box-shadow: 0 10px 26px rgba(0,212,255,.10);
+    }
+
+    .side{
+      display:grid;
+      gap:12px;
+    }
+    .mini{
+      border-radius: var(--radius2);
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+      padding: 14px 14px;
+      backdrop-filter: blur(10px);
+    }
+    .mini h3{
+      margin:0 0 8px;
+      font-size: 14px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color: rgba(233,238,255,.88);
+    }
+    .mini p{
+      margin:0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .mini .row{
+      display:flex;
+      gap:10px;
+      margin-top: 10px;
+      flex-wrap:wrap;
+    }
+    .pill{
+      padding: 8px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.20);
+      font-size:12px;
+      color: rgba(233,238,255,.88);
+      letter-spacing:.06em;
+    }
+    .pill strong{ font-weight:700; }
+
+    /* ========== Grid Cards ========== */
+    .grid{
+      margin-top: 18px;
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 14px;
+    }
+    @media (max-width: 980px){
+      .grid{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+    @media (max-width: 560px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+
+    .card{
+      position:relative;
+      border-radius: var(--radius);
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      overflow:hidden;
+      box-shadow: 0 14px 40px rgba(0,0,0,.45);
+      transition: transform .16s ease, border-color .16s ease, background .16s ease;
+      min-height: 152px;
+    }
+    .card:hover{
+      transform: translateY(-3px);
+      border-color: rgba(0,212,255,.35);
+      background: rgba(255,255,255,.075);
+    }
+    .card::before{
+      content:"";
+      position:absolute; inset:-2px;
+      background:
+        radial-gradient(420px 180px at 0% 0%, rgba(124,77,255,.22), transparent 60%),
+        radial-gradient(420px 180px at 100% 0%, rgba(0,212,255,.18), transparent 60%),
+        radial-gradient(420px 220px at 40% 120%, rgba(45,255,143,.12), transparent 65%);
+      opacity:.85;
+      pointer-events:none;
+    }
+    .card > *{ position:relative; }
+
+    .card a{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding: 16px 16px 14px;
+      height:100%;
+    }
+
+    .card .head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .card h4{
+      margin:0;
+      font-size: 16px;
+      letter-spacing:.01em;
+    }
+    .card p{
+      margin:0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .tags{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:auto;
+    }
+    .tag{
+      font-size: 11px;
+      letter-spacing:.10em;
+      text-transform:uppercase;
+      padding: 7px 9px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      color: rgba(233,238,255,.88);
+    }
+    .tag.hot{ border-color: rgba(0,212,255,.28); }
+    .tag.new{ border-color: rgba(45,255,143,.26); }
+    .tag.wip{ border-color: rgba(255, 220, 90, .22); }
+
+    .icon{
+      width:34px; height:34px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+      display:grid;
+      place-items:center;
+      flex: 0 0 auto;
+    }
+    .icon svg{ opacity:.9; }
+
+    /* ========== Footer ========== */
+    footer{
+      margin-top: 18px;
+      color: rgba(169,179,214,.75);
+      font-size: 12px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .link{
+      color: rgba(233,238,255,.88);
+      border-bottom: 1px dashed rgba(233,238,255,.35);
+    }
+
+    /* ========== Utilities ========== */
+    .hidden{ display:none !important; }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce){
+      .logo::after{ animation:none; }
+      .card, .chip{ transition:none; }
+    }
+  </style>
 </head>
-<body style="background:black;color:#00ff88;font-family:monospace;padding:40px;">
 
-<h1>BeutelsHub // LAB</h1>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Beutelshub <span class="sub">Lab Index</span></h1>
+        </div>
+      </div>
 
-<p>Status: ACTIVE</p>
+      <section class="hero">
+        <div class="panel">
+          <div class="title">
+            <div>
+              <h2>Lab: Tools, Tests, Träume</h2>
+              <p>
+                Hier landet alles, was lebt, leuchtet oder noch leicht raucht. Suche dir was aus,
+                klick rein, kaputtmachen erlaubt (meistens).
+              </p>
+            </div>
+            <span class="badge" id="countBadge">0 Projekte</span>
+          </div>
 
-<p>> Module list:</p>
+          <div class="controls">
+            <label class="search" aria-label="Projekte durchsuchen">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M10.5 18.5a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" stroke="currentColor" stroke-width="2"/>
+                <path d="M16.5 16.5 21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <input id="search" type="search" placeholder="Suchen: json, generator, three, …" autocomplete="off" />
+            </label>
 
-<ul>
-<li>> system.scan()</li>
-<li>> ai.interface()</li>
-<li>> tools.launch()</li>
-<li>> experiments.load()</li>
-</ul>
+            <div class="chips" id="chips">
+              <span class="chip" data-tag="all" data-active="true">Alle</span>
+              <span class="chip" data-tag="tool">Tools</span>
+              <span class="chip" data-tag="experiment">Experimente</span>
+              <span class="chip" data-tag="visual">Visuals</span>
+              <span class="chip" data-tag="wip">WIP</span>
+            </div>
+          </div>
+        </div>
 
-<p>> awaiting commands...</p>
+        <aside class="side">
+          <div class="mini">
+            <h3>Status</h3>
+            <p>Alles statisch, alles schnell. Backend? Nur wenn du’s extra anflanschst.</p>
+            <div class="row">
+              <span class="pill"><strong>Deploy:</strong> GitHub Pages</span>
+              <span class="pill"><strong>Mode:</strong> ✨ Lab</span>
+            </div>
+          </div>
 
-<a href="/" style="color:#00ff88;">return to main</a>
+          <div class="mini">
+            <h3>Shortcuts</h3>
+            <p>
+              <a class="link" href="../">← Home</a>
+              &nbsp;•&nbsp;
+              <a class="link" href="https://github.com/" target="_blank" rel="noreferrer">GitHub</a>
+              &nbsp;•&nbsp;
+              <a class="link" href="#projects">Projects ↓</a>
+            </p>
+          </div>
+        </aside>
+      </section>
+    </header>
 
+    <main id="projects" class="grid" aria-live="polite">
+      <!-- CARD TEMPLATE:
+        data-tags: space-separated tags
+        data-title + data-desc used by search
+      -->
+
+      <article class="card" data-tags="tool new" data-title="JSON Werkbank" data-desc="Formatter, Validator, Minifier, Copy">
+        <a href="./json-tool/" aria-label="JSON Werkbank öffnen">
+          <div class="head">
+            <div>
+              <h4>JSON Werkbank</h4>
+              <p>Formatieren, prüfen, minifizieren, kopieren.</p>
+            </div>
+            <div class="icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M8 7h8M8 12h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M6 3h9l3 3v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </div>
+          </div>
+          <div class="tags">
+            <span class="tag hot">tool</span>
+            <span class="tag new">new</span>
+          </div>
+        </a>
+      </article>
+
+      <article class="card" data-tags="tool" data-title="Passwort-Schmiede" data-desc="Generator mit Regeln, Copy, Stärkeindikator">
+        <a href="./password-forge/">
+          <div class="head">
+            <div>
+              <h4>Passwort-Schmiede</h4>
+              <p>Würfelstarke Strings auf Knopfdruck.</p>
+            </div>
+            <div class="icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M7 11V8a5 5 0 0 1 10 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M6 11h12v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V11Z" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 15v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+          <div class="tags">
+            <span class="tag">tool</span>
+          </div>
+        </a>
+      </article>
+
+      <article class="card" data-tags="experiment visual" data-title="Particles" data-desc="Canvas Partikel Spielwiese">
+        <a href="./particles/">
+          <div class="head">
+            <div>
+              <h4>Particles</h4>
+              <p>Canvas-Experiment: Punkte, Drift, Glow.</p>
+            </div>
+            <div class="icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2v4M12 18v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M2 12h4M18 12h4M4.2 19.8 7 17M17 7l2.8-2.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </div>
+          </div>
+          <div class="tags">
+            <span class="tag">experiment</span>
+            <span class="tag hot">visual</span>
+          </div>
+        </a>
+      </article>
+
+      <article class="card" data-tags="wip experiment" data-title="API Playground" data-desc="Fetch, CORS Notes, kleine Demos">
+        <a href="./api-playground/">
+          <div class="head">
+            <div>
+              <h4>API Playground</h4>
+              <p>Fetch-Tests, kleine Demos, CORS-Notizen.</p>
+            </div>
+            <div class="icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M8 8 4 12l4 4M16 8l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 6 10 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+          <div class="tags">
+            <span class="tag wip">wip</span>
+            <span class="tag">experiment</span>
+          </div>
+        </a>
+      </article>
+
+      <article class="card" data-tags="tool" data-title="Encoder/Decoder" data-desc="Base64, URL encode, Hash playground">
+        <a href="./encoder/">
+          <div class="head">
+            <div>
+              <h4>Encoder/Decoder</h4>
+              <p>Base64, URL-Encoding, Hash-Spielplatz.</p>
+            </div>
+            <div class="icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M7 7h10v10H7z" stroke="currentColor" stroke-width="2"/>
+                <path d="M4 4h4M16 4h4M4 20h4M16 20h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+          <div class="tags">
+            <span class="tag">tool</span>
+          </div>
+        </a>
+      </article>
+
+      <article class="card" data-tags="visual wip" data-title="Three Playground" data-desc="three.js tests: lights, materials, loaders">
+        <a href="./three/">
+          <div class="head">
+            <div>
+              <h4>Three Playground</h4>
+              <p>three.js: Lichter, Materialien, Loader.</p>
+            </div>
+            <div class="icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2 21 7v10l-9 5-9-5V7l9-5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M12 12 3 7M12 12l9-5M12 12v10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+          <div class="tags">
+            <span class="tag hot">visual</span>
+            <span class="tag wip">wip</span>
+          </div>
+        </a>
+      </article>
+
+    </main>
+
+    <footer>
+      <div>© <span id="year"></span> Beutelshub Lab</div>
+      <div>
+        Tipp: Ordner rein, Karte kopieren, Link anpassen.
+        <a class="link" href="#top" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;">nach oben</a>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    (function(){
+      const search = document.getElementById('search');
+      const chips = Array.from(document.querySelectorAll('.chip'));
+      const cards = Array.from(document.querySelectorAll('.card'));
+      const badge = document.getElementById('countBadge');
+      const year = document.getElementById('year');
+
+      year.textContent = new Date().getFullYear();
+
+      let activeTag = 'all';
+
+      function norm(s){
+        return (s || '').toLowerCase().trim();
+      }
+
+      function apply(){
+        const q = norm(search.value);
+        let shown = 0;
+
+        for (const card of cards){
+          const tags = norm(card.getAttribute('data-tags'));
+          const title = norm(card.getAttribute('data-title'));
+          const desc  = norm(card.getAttribute('data-desc'));
+
+          const matchesTag = (activeTag === 'all') || tags.split(/\s+/).includes(activeTag);
+          const matchesQ = !q || title.includes(q) || desc.includes(q) || tags.includes(q);
+
+          const show = matchesTag && matchesQ;
+          card.classList.toggle('hidden', !show);
+          if (show) shown++;
+        }
+
+        badge.textContent = shown + (shown === 1 ? ' Projekt' : ' Projekte');
+      }
+
+      chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          chips.forEach(c => c.dataset.active = 'false');
+          chip.dataset.active = 'true';
+          activeTag = chip.dataset.tag;
+          apply();
+        });
+      });
+
+      search.addEventListener('input', apply);
+
+      apply();
+    })();
+  </script>
 </body>
 </html>
