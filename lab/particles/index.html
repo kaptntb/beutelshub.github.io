@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Particles | Lab</title>
+  <meta name="description" content="Canvas Partikel Spielwiese: Drift, Glow, Lines, Gravitation." />
+
+  <style>
+    :root{
+      --bg0:#070910;
+      --bg1:#0b1020;
+      --text:#e9eeff;
+      --muted:#a9b3d6;
+      --line: rgba(255,255,255,.14);
+      --panel: rgba(255,255,255,.06);
+      --panel2: rgba(255,255,255,.10);
+      --shadow: 0 18px 50px rgba(0,0,0,.55);
+      --r: 18px;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      overflow:hidden;
+      font: 500 14px/1.4 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial;
+      color:var(--text);
+      background:
+        radial-gradient(1000px 680px at 18% 12%, rgba(124,77,255,.28), transparent 55%),
+        radial-gradient(880px 620px at 78% 22%, rgba(0,212,255,.20), transparent 55%),
+        radial-gradient(1000px 760px at 55% 85%, rgba(45,255,143,.12), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1) 60%, #060712);
+    }
+
+    canvas{ position:fixed; inset:0; width:100%; height:100%; display:block; }
+
+    /* HUD */
+    .hud{
+      position:fixed;
+      left:14px; top:14px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:flex-start;
+      z-index:10;
+      user-select:none;
+    }
+
+    .panel{
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, var(--panel2), var(--panel));
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 12px 12px;
+      backdrop-filter: blur(10px);
+      min-width: 270px;
+      max-width: min(360px, calc(100vw - 28px));
+    }
+
+    .bar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom: 10px;
+    }
+
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .title strong{
+      font-size: 13px;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+    }
+    .title span{
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .btns{ display:flex; gap:8px; }
+    button{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(0,0,0,.18);
+      color: rgba(233,238,255,.92);
+      padding: 9px 10px;
+      border-radius: 999px;
+      cursor:pointer;
+      font-weight:650;
+      letter-spacing:.04em;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+    }
+    button:hover{ transform: translateY(-1px); background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.22); }
+    button:active{ transform: translateY(0px); }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px 12px;
+      align-items:center;
+    }
+    .grid label{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      font-size: 11px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color: rgba(233,238,255,.88);
+    }
+    .grid input[type="range"]{
+      width:100%;
+      accent-color: rgba(0,212,255,.75);
+    }
+    .grid .val{
+      font-size: 12px;
+      color: var(--muted);
+      text-transform:none;
+      letter-spacing:0;
+    }
+
+    .toggles{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px 12px;
+      margin-top: 10px;
+    }
+    .toggle{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 9px 10px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.14);
+    }
+    .toggle span{
+      font-size: 11px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color: rgba(233,238,255,.88);
+    }
+    .toggle input{ width:18px; height:18px; }
+
+    .hint{
+      margin-top: 10px;
+      color: rgba(169,179,214,.82);
+      font-size: 12px;
+    }
+    .hint kbd{
+      font: 650 11px ui-sans-serif, system-ui;
+      padding: 2px 7px;
+      border-radius: 8px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.16);
+      color: rgba(233,238,255,.92);
+    }
+
+    .toast{
+      position:fixed;
+      left:14px;
+      bottom:14px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.30);
+      color: rgba(233,238,255,.90);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 16px 40px rgba(0,0,0,.45);
+      opacity:0;
+      transform: translateY(10px);
+      transition: opacity .18s ease, transform .18s ease;
+      z-index:10;
+      pointer-events:none;
+      max-width: calc(100vw - 28px);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .toast.show{ opacity:1; transform: translateY(0px); }
+
+    @media (max-width: 520px){
+      .panel{ min-width: unset; width: calc(100vw - 28px); }
+      .grid{ grid-template-columns: 1fr; }
+      .toggles{ grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      button{ transition:none; }
+      .toast{ transition:none; }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="c"></canvas>
+
+  <div class="hud" id="hud">
+    <div class="panel">
+      <div class="bar">
+        <div class="title">
+          <strong>Particles</strong>
+          <span id="stats">0 fps · 0 particles</span>
+        </div>
+        <div class="btns">
+          <button id="reset" title="Reset">Reset</button>
+          <button id="pause" title="Pause/Resume">Pause</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <label>
+          Anzahl <span class="val" id="vCount"></span>
+          <input id="count" type="range" min="50" max="1200" value="420" step="10" />
+        </label>
+
+        <label>
+          Speed <span class="val" id="vSpeed"></span>
+          <input id="speed" type="range" min="0" max="250" value="90" step="1" />
+        </label>
+
+        <label>
+          Größe <span class="val" id="vSize"></span>
+          <input id="size" type="range" min="1" max="8" value="2" step="0.5" />
+        </label>
+
+        <label>
+          Links <span class="val" id="vLinks"></span>
+          <input id="links" type="range" min="0" max="220" value="140" step="5" />
+        </label>
+
+        <label>
+          Link-Distanz <span class="val" id="vDist"></span>
+          <input id="dist" type="range" min="30" max="260" value="120" step="5" />
+        </label>
+
+        <label>
+          Maus-Force <span class="val" id="vForce"></span>
+          <input id="force" type="range" min="0" max="400" value="160" step="5" />
+        </label>
+      </div>
+
+      <div class="toggles">
+        <div class="toggle"><span>Glow</span><input id="glow" type="checkbox" checked /></div>
+        <div class="toggle"><span>Trails</span><input id="trails" type="checkbox" checked /></div>
+        <div class="toggle"><span>Links</span><input id="lines" type="checkbox" checked /></div>
+        <div class="toggle"><span>Wrap</span><input id="wrap" type="checkbox" checked /></div>
+      </div>
+
+      <div class="hint">
+        <div>Drag: Partikel anziehen. <kbd>Space</kbd> Pause. <kbd>R</kbd> Reset. <kbd>H</kbd> HUD.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ---- Utilities ----
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const rand = (a, b) => a + Math.random() * (b - a);
+    const now = () => performance.now();
+
+    // ---- Canvas setup (HiDPI) ----
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
+
+    let W = 0, H = 0, DPR = 1;
+    function resize(){
+      DPR = Math.min(2, window.devicePixelRatio || 1);
+      W = Math.floor(innerWidth);
+      H = Math.floor(innerHeight);
+      canvas.width  = Math.floor(W * DPR);
+      canvas.height = Math.floor(H * DPR);
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+    }
+    addEventListener('resize', resize, { passive: true });
+    resize();
+
+    // ---- UI ----
+    const ui = {
+      count:  document.getElementById('count'),
+      speed:  document.getElementById('speed'),
+      size:   document.getElementById('size'),
+      links:  document.getElementById('links'),
+      dist:   document.getElementById('dist'),
+      force:  document.getElementById('force'),
+      glow:   document.getElementById('glow'),
+      trails: document.getElementById('trails'),
+      lines:  document.getElementById('lines'),
+      wrap:   document.getElementById('wrap'),
+      reset:  document.getElementById('reset'),
+      pause:  document.getElementById('pause'),
+      stats:  document.getElementById('stats'),
+      hud:    document.getElementById('hud'),
+      toast:  document.getElementById('toast'),
+      vCount: document.getElementById('vCount'),
+      vSpeed: document.getElementById('vSpeed'),
+      vSize:  document.getElementById('vSize'),
+      vLinks: document.getElementById('vLinks'),
+      vDist:  document.getElementById('vDist'),
+      vForce: document.getElementById('vForce'),
+    };
+
+    function showToast(msg){
+      ui.toast.textContent = msg;
+      ui.toast.classList.add('show');
+      clearTimeout(showToast.t);
+      showToast.t = setTimeout(() => ui.toast.classList.remove('show'), 1200);
+    }
+
+    function syncLabels(){
+      ui.vCount.textContent = ui.count.value;
+      ui.vSpeed.textContent = (ui.speed.value / 100).toFixed(2);
+      ui.vSize.textContent  = Number(ui.size.value).toFixed(1);
+      ui.vLinks.textContent = ui.links.value;
+      ui.vDist.textContent  = ui.dist.value + 'px';
+      ui.vForce.textContent = ui.force.value;
+    }
+    ['input','change'].forEach(evt => {
+      Object.values(ui).forEach(el => {
+        if (el && el.tagName === 'INPUT') el.addEventListener(evt, syncLabels);
+      });
+    });
+    syncLabels();
+
+    // ---- Simulation ----
+    let particles = [];
+    let paused = false;
+
+    const mouse = { x: W/2, y: H/2, down: false, inside: false };
+
+    canvas.addEventListener('pointerdown', e => { mouse.down = true; canvas.setPointerCapture(e.pointerId); }, { passive: true });
+    canvas.addEventListener('pointerup',   () => { mouse.down = false; }, { passive: true });
+    canvas.addEventListener('pointermove', e => {
+      const r = canvas.getBoundingClientRect();
+      mouse.x = (e.clientX - r.left);
+      mouse.y = (e.clientY - r.top);
+      mouse.inside = true;
+    }, { passive: true });
+    canvas.addEventListener('pointerleave', () => { mouse.inside = false; }, { passive: true });
+
+    function makeParticles(n){
+      particles = new Array(n).fill(0).map(() => ({
+        x: rand(0, W),
+        y: rand(0, H),
+        vx: rand(-0.6, 0.6),
+        vy: rand(-0.6, 0.6),
+        hue: rand(170, 260), // cool range
+      }));
+    }
+
+    function reset(){
+      makeParticles(Number(ui.count.value));
+      showToast('Reset');
+    }
+
+    ui.reset.addEventListener('click', reset);
+    ui.pause.addEventListener('click', () => {
+      paused = !paused;
+      ui.pause.textContent = paused ? 'Resume' : 'Pause';
+      showToast(paused ? 'Pause' : 'Resume');
+    });
+
+    addEventListener('keydown', (e) => {
+      if (e.code === 'Space'){
+        e.preventDefault();
+        paused = !paused;
+        ui.pause.textContent = paused ? 'Resume' : 'Pause';
+        showToast(paused ? 'Pause' : 'Resume');
+      } else if (e.key.toLowerCase() === 'r'){
+        reset();
+      } else if (e.key.toLowerCase() === 'h'){
+        const hidden = ui.hud.style.display === 'none';
+        ui.hud.style.display = hidden ? '' : 'none';
+        showToast(hidden ? 'HUD an' : 'HUD aus');
+      }
+    }, { passive: false });
+
+    // If slider count changes, rebuild with same-ish density (fast + simple)
+    ui.count.addEventListener('change', () => {
+      const n = Number(ui.count.value);
+      makeParticles(n);
+      showToast('Anzahl: ' + n);
+    });
+
+    reset();
+
+    // ---- Render helpers ----
+    function clearFrame(){
+      if (ui.trails.checked){
+        // Fade old frame (trail)
+        ctx.fillStyle = 'rgba(5, 6, 18, 0.16)';
+        ctx.fillRect(0,0,W,H);
+      } else {
+        ctx.clearRect(0,0,W,H);
+      }
+    }
+
+    function drawParticle(p, size){
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, size, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // ---- Spatial hashing for links (fast-ish) ----
+    // Keeps it simple: bucket by cell size ~= link distance
+    function buildGrid(cell){
+      const cols = Math.ceil(W / cell);
+      const rows = Math.ceil(H / cell);
+      const grid = new Array(cols * rows);
+      for (let i=0;i<grid.length;i++) grid[i] = [];
+      for (let i=0;i<particles.length;i++){
+        const p = particles[i];
+        const cx = Math.floor(p.x / cell);
+        const cy = Math.floor(p.y / cell);
+        const idx = cy * cols + cx;
+        if (grid[idx]) grid[idx].push(i);
+      }
+      return { grid, cols, rows, cell };
+    }
+
+    function neighbors(gridObj, x, y){
+      const { cols, rows, cell, grid } = gridObj;
+      const cx = Math.floor(x / cell);
+      const cy = Math.floor(y / cell);
+      const out = [];
+      for (let oy=-1; oy<=1; oy++){
+        for (let ox=-1; ox<=1; ox++){
+          const nx = cx + ox;
+          const ny = cy + oy;
+          if (nx<0 || ny<0 || nx>=cols || ny>=rows) continue;
+          out.push(...grid[ny*cols + nx]);
+        }
+      }
+      return out;
+    }
+
+    // ---- Animation loop + FPS ----
+    let last = now();
+    let fps = 0;
+    let fpsAcc = 0;
+    let fpsN = 0;
+
+    function tick(t){
+      requestAnimationFrame(tick);
+
+      const dt = clamp((t - last) / 16.6667, 0.2, 3.0); // normalized dt (60fps baseline)
+      last = t;
+
+      // FPS meter (smoothed)
+      const instFps = 1000 / Math.max(1, (performance.now() - (tick._prev || performance.now())));
+      tick._prev = performance.now();
+      fpsAcc += instFps; fpsN++;
+      if (fpsN >= 15){
+        fps = Math.round(fpsAcc / fpsN);
+        fpsAcc = 0; fpsN = 0;
+      }
+
+      if (paused){
+        ui.stats.textContent = `${fps} fps · ${particles.length} particles`;
+        return;
+      }
+
+      const speed = Number(ui.speed.value) / 100;
+      const size  = Number(ui.size.value);
+      const wrap  = ui.wrap.checked;
+
+      const linkDist = Number(ui.dist.value);
+      const linkDist2 = linkDist * linkDist;
+      const maxLinks = Number(ui.links.value);
+
+      const mouseForce = Number(ui.force.value);
+      const useLines = ui.lines.checked;
+
+      clearFrame();
+
+      // Glow
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.shadowBlur = ui.glow.checked ? 18 : 0;
+      ctx.shadowColor = 'rgba(0, 212, 255, .35)';
+
+      // Update particles
+      const mx = mouse.x, my = mouse.y;
+      const attract = mouse.down && mouse.inside && mouseForce > 0;
+
+      for (const p of particles){
+        if (attract){
+          const dx = mx - p.x;
+          const dy = my - p.y;
+          const d2 = dx*dx + dy*dy + 0.001;
+          // Inverse distance falloff
+          const f = (mouseForce / 100000) / d2;
+          p.vx += dx * f * dt;
+          p.vy += dy * f * dt;
+        }
+
+        // Slight damping keeps it silky
+        p.vx *= (0.992 - 0.002*speed);
+        p.vy *= (0.992 - 0.002*speed);
+
+        p.x += p.vx * (1.8 + 3.6*speed) * dt;
+        p.y += p.vy * (1.8 + 3.6*speed) * dt;
+
+        if (wrap){
+          if (p.x < -10) p.x = W + 10;
+          else if (p.x > W + 10) p.x = -10;
+          if (p.y < -10) p.y = H + 10;
+          else if (p.y > H + 10) p.y = -10;
+        } else {
+          if (p.x < 0 || p.x > W) p.vx *= -1;
+          if (p.y < 0 || p.y > H) p.vy *= -1;
+          p.x = clamp(p.x, 0, W);
+          p.y = clamp(p.y, 0, H);
+        }
+      }
+
+      // Links using spatial hashing
+      if (useLines && maxLinks > 0){
+        const g = buildGrid(linkDist);
+        let linksDone = 0;
+
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+
+        for (let i=0; i<particles.length; i++){
+          if (linksDone >= maxLinks) break;
+          const p = particles[i];
+          const neigh = neighbors(g, p.x, p.y);
+
+          for (let k=0; k<neigh.length; k++){
+            const j = neigh[k];
+            if (j <= i) continue;
+
+            const q = particles[j];
+            const dx = q.x - p.x;
+            const dy = q.y - p.y;
+            const d2 = dx*dx + dy*dy;
+
+            if (d2 < linkDist2){
+              const a = 1 - (d2 / linkDist2);
+              // draw small batches
+              ctx.strokeStyle = `rgba(0, 212, 255, ${0.11 * a})`;
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(q.x, q.y);
+
+              linksDone++;
+              if (linksDone >= maxLinks) break;
+            }
+          }
+        }
+        ctx.stroke();
+      }
+
+      // Draw particles
+      for (const p of particles){
+        ctx.fillStyle = `hsla(${p.hue}, 95%, 70%, 0.88)`;
+        drawParticle(p, size);
+      }
+
+      ctx.restore();
+
+      ui.stats.textContent = `${fps} fps · ${particles.length} particles`;
+    }
+
+    // Prime background if trails on, so first frame isn't transparent
+    ctx.fillStyle = 'rgba(5, 6, 18, 1)';
+    ctx.fillRect(0,0,W,H);
+
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
