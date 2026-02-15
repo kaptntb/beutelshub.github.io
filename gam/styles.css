@@ -228,8 +228,8 @@ dialog::backdrop{ background: rgba(0,0,0,.55); }
 }
 
 #hero-img {
-  width: 120px;
-  height: 120px;
+  width: 20px;
+  height: 20px;
   object-fit: contain;
   image-rendering: pixelated;
   filter: drop-shadow(0 0 8px rgba(124,200,255,0.35));
