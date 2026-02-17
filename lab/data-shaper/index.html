@@ -165,7 +165,7 @@
         <div class="box">
           <div class="smallrow" style="margin-bottom:10px;">
             <div class="kvs">
-              <button id="btn-parse" class="">Parse</button>
+              <button id="btn-parse">Parse</button>
               <button id="btn-clear" class="ghost">Clear</button>
             </div>
 
@@ -224,12 +224,19 @@
             <label class="check"><input id="r-normalize-headers" type="checkbox" checked /> Header normalisieren (snake_case)</label>
             <label class="check"><input id="r-fix-numbers" type="checkbox" /> Zahlen normalisieren (1.234,56 → 1234.56)</label>
             <label class="check"><input id="r-fix-dates" type="checkbox" /> Datum erkennen (DD.MM.YYYY etc → YYYY-MM-DD)</label>
+            <label class="check"><input id="r-fix-phones" type="checkbox" /> Telefonnummern normalisieren (DE default)</label>
+          </div>
+
+          <div class="field" style="margin-top:12px;">
+            <div class="label">Default Country (ISO2)</div>
+            <input id="phoneCountry" type="text" value="DE" placeholder="DE" />
+            <div class="hint">Wird genutzt, wenn Nummer ohne +.. kommt. DE-only ist am robustesten.</div>
           </div>
 
           <div class="grid2" style="margin-top:12px;">
             <div class="field">
               <div class="label">Spalten behalten (optional)</div>
-              <input id="keepCols" type="text" placeholder="z.B. id,name,amount,date" />
+              <input id="keepCols" type="text" placeholder="z.B. id,name,amount,date,telefon" />
               <div class="hint">Leer lassen = alle. Komma-separiert, nach Normalisierung.</div>
             </div>
             <div class="field">
