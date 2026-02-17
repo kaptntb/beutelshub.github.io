@@ -34,6 +34,8 @@
     rNormalizeHeaders: $("r-normalize-headers"),
     rFixNumbers: $("r-fix-numbers"),
     rFixDates: $("r-fix-dates"),
+    rFixPhones: $("r-fix-phones"),
+    phoneCountry: $("phoneCountry"),
 
     keepCols: $("keepCols"),
     renameCols: $("renameCols"),
@@ -93,7 +95,6 @@
   }
 
   function detectDelimiter(text) {
-    // try common delimiters: ; , tab |
     const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0).slice(0, 10);
     if (lines.length === 0) return ",";
     const cand = [",", ";", "\t", "|"];
@@ -103,7 +104,6 @@
       let score = 0;
       for (const ln of lines) {
         const parts = splitCSVLine(ln, d);
-        // reward consistent split count
         score += parts.length;
       }
       if (score > best.score) best = { d, score };
@@ -112,7 +112,6 @@
   }
 
   function splitCSVLine(line, delim) {
-    // simple CSV splitter with quotes support (handles "" inside quotes)
     const out = [];
     let cur = "";
     let inQ = false;
@@ -146,7 +145,6 @@
   function parseDelimited(text, delimiter, headerMode) {
     const lines = text.split(/\r?\n/);
 
-    // remove trailing empty lines
     while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
 
     const rows = [];
@@ -163,10 +161,7 @@
     let headerUsed = true;
     if (headerMode === "no") headerUsed = false;
     if (headerMode === "yes") headerUsed = true;
-    if (headerMode === "auto") {
-      // heuristic: if first row has any non-numeric strings and later rows look more numeric-ish
-      headerUsed = guessHeader(rows);
-    }
+    if (headerMode === "auto") headerUsed = guessHeader(rows);
 
     let headers = [];
     let body = rows;
@@ -203,16 +198,13 @@
   function snakeCaseHeader(s) {
     let x = norm(s).trim();
 
-    // normalize umlauts, ß (basic)
     x = x
       .replaceAll("ä", "ae").replaceAll("ö", "oe").replaceAll("ü", "ue")
       .replaceAll("Ä", "ae").replaceAll("Ö", "oe").replaceAll("Ü", "ue")
       .replaceAll("ß", "ss");
 
-    // remove quotes and weirds
     x = x.replaceAll('"', "").replaceAll("'", "");
 
-    // to lower + underscore
     x = x.toLowerCase()
       .replace(/[^a-z0-9]+/g, "_")
       .replace(/^_+|_+$/g, "")
@@ -252,28 +244,20 @@
   }
 
   function normalizeNumber(s) {
-    // handle "1.234,56" -> "1234.56"
-    // and "1 234,56" -> "1234.56"
     let x = norm(s).trim();
     if (!x) return x;
 
-    // remove spaces
     x = x.replace(/\s+/g, "");
 
-    // detect both . and , present
     if (x.includes(".") && x.includes(",")) {
-      // assume last separator is decimal; if comma is last, decimal comma
       const lastDot = x.lastIndexOf(".");
       const lastComma = x.lastIndexOf(",");
       if (lastComma > lastDot) {
-        // decimal comma: remove dots (thousands), replace comma with dot
         x = x.replace(/\./g, "").replace(",", ".");
       } else {
-        // decimal dot: remove commas (thousands)
         x = x.replace(/,/g, "");
       }
     } else if (x.includes(",") && !x.includes(".")) {
-      // maybe decimal comma
       if (/^-?\d{1,3}(?:\.\d{3})*,\d+$/.test(x)) {
         x = x.replace(/\./g, "").replace(",", ".");
       } else if (/^-?\d+,\d+$/.test(x)) {
@@ -284,11 +268,9 @@
   }
 
   function normalizeDate(s) {
-    // supports: DD.MM.YYYY, DD/MM/YYYY, YYYY-MM-DD, YYYY/MM/DD
     const x = norm(s).trim();
     if (!x) return x;
 
-    // yyyy-mm-dd
     let m = x.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
     if (m) {
       const yyyy = m[1];
@@ -297,7 +279,6 @@
       return `${yyyy}-${mm}-${dd}`;
     }
 
-    // dd.mm.yyyy or dd/mm/yyyy
     m = x.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})$/);
     if (m) {
       const dd = String(m[1]).padStart(2, "0");
@@ -307,6 +288,41 @@
     }
 
     return x;
+  }
+
+  // --- Phone normalization (DE default; conservative for other cases)
+  function looksLikePhoneColumn(h) {
+    const x = (h || "").toLowerCase();
+    return ["phone","telefon","tel","mobile","handy","rufnummer","kontakt"].some(k => x.includes(k));
+  }
+
+  function normalizePhone(raw, countryISO2 = "DE") {
+    let s = norm(raw).trim();
+    if (!s) return s;
+
+    s = s.replace(/^tel:\s*/i, "");
+    s = s.replace(/[^\d+]/g, "");
+    s = s.replace(/\+(?=.)/g, (m, off) => (off === 0 ? "+" : ""));
+
+    if (s.startsWith("00")) s = "+" + s.slice(2);
+
+    if (s.startsWith("+")) {
+      const digits = s.slice(1).replace(/\D/g, "");
+      if (digits.length < 7) return raw;
+      return "+" + digits;
+    }
+
+    const cc = (countryISO2 || "DE").toUpperCase();
+
+    if (cc === "DE") {
+      let d = s.replace(/\D/g, "");
+      if (d.length < 7) return raw;
+      if (d.startsWith("0")) d = d.slice(1);
+      if (d.startsWith("49") && d.length >= 9) return "+49" + d.slice(2);
+      return "+49" + d;
+    }
+
+    return s.replace(/\D/g, "");
   }
 
   function applyPipeline(parsed) {
@@ -320,13 +336,14 @@
     const normalizeHeaders = ui.rNormalizeHeaders.checked;
     const fixNumbers = ui.rFixNumbers.checked;
     const fixDates = ui.rFixDates.checked;
+    const fixPhones = ui.rFixPhones.checked;
+    const phoneCC = (ui.phoneCountry.value || "DE").trim().toUpperCase();
 
     if (doTrim) {
       headers = headers.map(h => trimCell(h));
       rows = rows.map(r => r.map(c => trimCell(c)));
     }
 
-    // header normalize first (before rename/keep)
     if (normalizeHeaders) {
       headers = headers.map(h => snakeCaseHeader(h));
     }
@@ -335,13 +352,11 @@
       headers = dedupeHeaders(headers);
     }
 
-    // rename map applies after normalize
     const renameMap = parseRenameMap(ui.renameCols.value);
     if (renameMap.size) {
       headers = headers.map(h => renameMap.get(h) || h);
     }
 
-    // keep columns (after rename)
     const keep = parseKeepList(ui.keepCols.value);
     if (keep && keep.length) {
       const idxs = [];
@@ -370,12 +385,19 @@
       rows = rows.map(r => keepIdx.map(i => r[i] ?? ""));
     }
 
-    if (fixNumbers || fixDates) {
-      rows = rows.map(r => r.map(v => {
+    if (fixNumbers || fixDates || fixPhones) {
+      const phoneCols = fixPhones
+        ? headers.map((h, i) => looksLikePhoneColumn(h) ? i : -1).filter(i => i >= 0)
+        : [];
+
+      rows = rows.map(r => r.map((v, idx) => {
         let x = norm(v);
         if (doTrim) x = x.trim();
         if (fixNumbers) x = normalizeNumber(x);
         if (fixDates) x = normalizeDate(x);
+        if (fixPhones && phoneCols.includes(idx)) {
+          x = normalizePhone(x, phoneCC);
+        }
         return x;
       }));
     }
@@ -465,7 +487,7 @@
       setBadge("COPIED");
       setTimeout(() => setBadge("READY"), 650);
     } catch {
-      ui.copyHint.textContent = "Clipboard nicht verfügbar (Browser/HTTPS?). Du kannst trotzdem im Output markieren & kopieren.";
+      ui.copyHint.textContent = "Clipboard nicht verfügbar (Browser/HTTPS?). Markieren & kopieren geht trotzdem.";
       setBadge("NOCLIP", "warn");
       setTimeout(() => setBadge("READY"), 900);
     }
@@ -524,18 +546,14 @@
       const buf = await file.arrayBuffer();
       const wb = window.XLSX.read(buf, { type: "array" });
 
-      // choose first sheet
       const first = wb.SheetNames[0];
       const ws = wb.Sheets[first];
 
-      // sheet_to_json with header:1 yields array-of-arrays
       const aoa = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
 
-      // remove empty trailing rows
       while (aoa.length && isRowEmpty(aoa[aoa.length - 1].map(String))) aoa.pop();
       if (!aoa.length) throw new Error("XLSX Sheet ist leer.");
 
-      // normalize row lengths
       const maxLen = Math.max(...aoa.map(r => r.length));
       const rows = aoa.map(r => {
         const rr = r.map(v => (v === null || v === undefined) ? "" : String(v));
@@ -543,7 +561,6 @@
         return rr;
       });
 
-      // header mode rules apply here too
       let headerUsed = true;
       if (ui.headerMode.value === "no") headerUsed = false;
       if (ui.headerMode.value === "yes") headerUsed = true;
@@ -560,7 +577,7 @@
 
       state.raw = { headers, rows: body };
       state.format = "XLSX";
-      state.delimiter = ","; // for stats only
+      state.delimiter = ","; // for stats
       state.headerUsed = headerUsed;
 
       applyAndRender();
@@ -573,11 +590,11 @@
 
   function sampleCSV() {
     ui.input.value =
-`Name;Summe;Datum;Kommentar
-  Alice ; 1.234,56 ; 12.01.2025 ; " ok "
-Bob; 99,5 ; 2025-02-03 ; "hi"
-;;;
-Clara; 2.000 ; 03/02/2025 ;`;
+`Name;Telefon;Summe;Datum;Kommentar
+  Alice ; 0170 1234567 ; 1.234,56 ; 12.01.2025 ; " ok "
+Bob; +49 (160) 9988-7766 ; 99,5 ; 2025-02-03 ; "hi"
+;;;;
+Clara; 0049 151 22233344 ; 2.000 ; 03/02/2025 ;`;
     ui.delimiterMode.value = "auto";
     ui.headerMode.value = "auto";
     parseFromTextarea();
@@ -591,12 +608,15 @@ Clara; 2.000 ; 03/02/2025 ;`;
     ui.rNormalizeHeaders.checked = true;
     ui.rFixNumbers.checked = false;
     ui.rFixDates.checked = false;
+    ui.rFixPhones.checked = false;
+    ui.phoneCountry.value = "DE";
     ui.keepCols.value = "";
     ui.renameCols.value = "";
   }
 
   // Wiring
   ui.btnParse.addEventListener("click", parseFromTextarea);
+
   ui.btnClear.addEventListener("click", () => {
     ui.input.value = "";
     ui.xlsxFile.value = "";
@@ -611,7 +631,6 @@ Clara; 2.000 ; 03/02/2025 ;`;
   ui.btnSample.addEventListener("click", sampleCSV);
 
   ui.input.addEventListener("input", () => {
-    // light auto-parse after small pause
     window.clearTimeout(window.__ds_t);
     window.__ds_t = window.setTimeout(parseFromTextarea, 250);
   });
@@ -625,13 +644,19 @@ Clara; 2.000 ; 03/02/2025 ;`;
 
   [
     ui.rTrim, ui.rDropEmptyRows, ui.rDropEmptyCols, ui.rDedupeCols,
-    ui.rNormalizeHeaders, ui.rFixNumbers, ui.rFixDates
+    ui.rNormalizeHeaders, ui.rFixNumbers, ui.rFixDates, ui.rFixPhones
   ].forEach(x => x.addEventListener("change", applyAndRender));
+
+  ui.phoneCountry.addEventListener("input", () => {
+    window.clearTimeout(window.__ds_p);
+    window.__ds_p = window.setTimeout(applyAndRender, 250);
+  });
 
   ui.keepCols.addEventListener("input", () => {
     window.clearTimeout(window.__ds_k);
     window.__ds_k = window.setTimeout(applyAndRender, 300);
   });
+
   ui.renameCols.addEventListener("input", () => {
     window.clearTimeout(window.__ds_r);
     window.__ds_r = window.setTimeout(applyAndRender, 300);
