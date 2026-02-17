@@ -53,8 +53,8 @@
   };
 
   const state = {
-    raw: { headers: [], rows: [] },     // parsed
-    shaped: { headers: [], rows: [] },  // transformed
+    raw: { headers: [], rows: [] },
+    shaped: { headers: [], rows: [] },
     format: "—",
     delimiter: "—",
     headerUsed: true,
@@ -94,6 +94,7 @@
     return true;
   }
 
+  // ---------- CSV parsing ----------
   function detectDelimiter(text) {
     const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0).slice(0, 10);
     if (lines.length === 0) return ",";
@@ -142,9 +143,26 @@
     return out;
   }
 
+  function guessHeader(rows) {
+    if (rows.length < 2) return true;
+    const r0 = rows[0];
+    const r1 = rows[1];
+
+    const scoreRow = (r) => {
+      let score = 0;
+      for (const c of r) {
+        const t = trimCell(c);
+        if (!t) continue;
+        if (/^-?\d+([.,]\d+)?$/.test(t)) score -= 1;
+        else score += 1;
+      }
+      return score;
+    };
+    return scoreRow(r0) >= scoreRow(r1);
+  }
+
   function parseDelimited(text, delimiter, headerMode) {
     const lines = text.split(/\r?\n/);
-
     while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
 
     const rows = [];
@@ -177,24 +195,7 @@
     return { headers, rows: body, headerUsed };
   }
 
-  function guessHeader(rows) {
-    if (rows.length < 2) return true;
-    const r0 = rows[0];
-    const r1 = rows[1];
-
-    const scoreRow = (r) => {
-      let score = 0;
-      for (const c of r) {
-        const t = trimCell(c);
-        if (!t) continue;
-        if (/^-?\d+([.,]\d+)?$/.test(t)) score -= 1;
-        else score += 1;
-      }
-      return score;
-    };
-    return scoreRow(r0) >= scoreRow(r1);
-  }
-
+  // ---------- header helpers ----------
   function snakeCaseHeader(s) {
     let x = norm(s).trim();
 
@@ -243,6 +244,7 @@
     return t.split(",").map(s => s.trim()).filter(Boolean);
   }
 
+  // ---------- value normalizers ----------
   function normalizeNumber(s) {
     let x = norm(s).trim();
     if (!x) return x;
@@ -290,7 +292,45 @@
     return x;
   }
 
-  // --- Phone normalization (DE default; conservative for other cases)
+  // ---------- Excel scientific notation fix (string-safe) ----------
+  // Converts e.g. "4,91512E+12" or "4.91512e12" -> "4915120000000" (no rounding)
+  function scientificToIntString(s) {
+    let x = norm(s).trim();
+    if (!x) return x;
+
+    // remove spaces, unify decimal separator
+    x = x.replace(/\s+/g, "").replace(",", ".");
+    // match: digits[.digits]e+digits
+    const m = x.match(/^(\d+(?:\.\d+)?)e\+?(\d+)$/i);
+    if (!m) return s;
+
+    const mant = m[1];
+    const exp = parseInt(m[2], 10);
+
+    const parts = mant.split(".");
+    const intPart = parts[0] || "0";
+    const fracPart = parts[1] || "";
+
+    // Remove dot -> digits
+    let digits = intPart + fracPart;
+    // Number of decimals in mantissa
+    const decimals = fracPart.length;
+
+    // We need to shift decimal point right by exp
+    // Equivalent: append (exp - decimals) zeros if exp >= decimals
+    // or insert decimal if exp < decimals (but we want an integer string: then we truncate? better: keep as integer by removing dot shift)
+    if (exp >= decimals) {
+      const zeros = exp - decimals;
+      return digits + "0".repeat(zeros);
+    }
+
+    // exp < decimals: result would have decimal places; for phone numbers, Excel usually uses exp >= decimals.
+    // In rare case, we return digits up to the decimal shift (truncate to integer).
+    const cut = digits.slice(0, intPart.length + exp);
+    return cut || "0";
+  }
+
+  // ---------- Phone normalization ----------
   function looksLikePhoneColumn(h) {
     const x = (h || "").toLowerCase();
     return ["phone","telefon","tel","mobile","handy","rufnummer","kontakt"].some(k => x.includes(k));
@@ -300,31 +340,53 @@
     let s = norm(raw).trim();
     if (!s) return s;
 
-    s = s.replace(/^tel:\s*/i, "");
-    s = s.replace(/[^\d+]/g, "");
-    s = s.replace(/\+(?=.)/g, (m, off) => (off === 0 ? "+" : ""));
+    // If Excel left scientific notation as string, fix it first
+    if (/[eE]\+?\d+/.test(s) && /[0-9]/.test(s)) {
+      const fixed = scientificToIntString(s);
+      // only take if it actually changed to digits
+      if (/^\d+$/.test(fixed)) s = fixed;
+    }
 
+    s = s.replace(/^tel:\s*/i, "");
+
+    // Keep + if present, strip everything else
+    s = s.replace(/[^\d+]/g, "");
+    // 00 -> +
     if (s.startsWith("00")) s = "+" + s.slice(2);
 
+    // normalize multiple '+'
+    s = s.replace(/\+(?=.)/g, (m, off) => (off === 0 ? "+" : ""));
+
+    // already international
     if (s.startsWith("+")) {
       const digits = s.slice(1).replace(/\D/g, "");
       if (digits.length < 7) return raw;
       return "+" + digits;
     }
 
+    // no '+' : only digits now
+    let d = s.replace(/\D/g, "");
+    if (!d) return raw;
+
     const cc = (countryISO2 || "DE").toUpperCase();
 
+    // Common case: user typed 49... without +
+    if (cc === "DE" && d.startsWith("49") && d.length >= 9) {
+      return "+49" + d.slice(2);
+    }
+
     if (cc === "DE") {
-      let d = s.replace(/\D/g, "");
+      // 0xxxx -> +49xxxx
       if (d.length < 7) return raw;
       if (d.startsWith("0")) d = d.slice(1);
-      if (d.startsWith("49") && d.length >= 9) return "+49" + d.slice(2);
       return "+49" + d;
     }
 
-    return s.replace(/\D/g, "");
+    // conservative fallback (don’t invent country code)
+    return d;
   }
 
+  // ---------- pipeline ----------
   function applyPipeline(parsed) {
     let headers = [...parsed.headers];
     let rows = parsed.rows.map(r => [...r]);
@@ -390,12 +452,15 @@
         ? headers.map((h, i) => looksLikePhoneColumn(h) ? i : -1).filter(i => i >= 0)
         : [];
 
+      // fast membership
+      const phoneSet = new Set(phoneCols);
+
       rows = rows.map(r => r.map((v, idx) => {
         let x = norm(v);
         if (doTrim) x = x.trim();
         if (fixNumbers) x = normalizeNumber(x);
         if (fixDates) x = normalizeDate(x);
-        if (fixPhones && phoneCols.includes(idx)) {
+        if (fixPhones && phoneSet.has(idx)) {
           x = normalizePhone(x, phoneCC);
         }
         return x;
@@ -405,6 +470,7 @@
     return { headers, rows };
   }
 
+  // ---------- output ----------
   function toDelimited(data, delimiter) {
     const d = delimiter;
     const esc = (v) => {
@@ -493,6 +559,7 @@
     }
   }
 
+  // ---------- input handlers ----------
   function parseFromTextarea() {
     setError("");
     const t = ui.input.value || "";
@@ -549,14 +616,34 @@
       const first = wb.SheetNames[0];
       const ws = wb.Sheets[first];
 
+      // header:1 gives array-of-arrays; defval keeps empty as ""
       const aoa = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
 
       while (aoa.length && isRowEmpty(aoa[aoa.length - 1].map(String))) aoa.pop();
       if (!aoa.length) throw new Error("XLSX Sheet ist leer.");
 
       const maxLen = Math.max(...aoa.map(r => r.length));
+
+      // IMPORTANT: convert numbers to integer strings (avoids 4.91512E+12 & plus loss)
       const rows = aoa.map(r => {
-        const rr = r.map(v => (v === null || v === undefined) ? "" : String(v));
+        const rr = r.map(v => {
+          if (v === null || v === undefined) return "";
+
+          if (typeof v === "number" && Number.isFinite(v)) {
+            // Telephone-like numbers are safe here (< 9e15). No scientific notation.
+            return String(Math.trunc(v));
+          }
+
+          // some Excel exports already give strings like "4,91512E+12"
+          const s = String(v);
+          if (/[eE]\+?\d+/.test(s) && /[0-9]/.test(s)) {
+            const fixed = scientificToIntString(s);
+            if (/^\d+$/.test(fixed)) return fixed;
+          }
+
+          return s;
+        });
+
         while (rr.length < maxLen) rr.push("");
         return rr;
       });
@@ -577,7 +664,7 @@
 
       state.raw = { headers, rows: body };
       state.format = "XLSX";
-      state.delimiter = ","; // for stats
+      state.delimiter = ","; // stats only
       state.headerUsed = headerUsed;
 
       applyAndRender();
@@ -591,10 +678,9 @@
   function sampleCSV() {
     ui.input.value =
 `Name;Telefon;Summe;Datum;Kommentar
-  Alice ; 0170 1234567 ; 1.234,56 ; 12.01.2025 ; " ok "
+Alice; 0176 45743 ; 1.234,56 ; 12.01.2025 ; " ok "
 Bob; +49 (160) 9988-7766 ; 99,5 ; 2025-02-03 ; "hi"
-;;;;
-Clara; 0049 151 22233344 ; 2.000 ; 03/02/2025 ;`;
+Clara; 4,91512E+12 ; 2.000 ; 03/02/2025 ;`;
     ui.delimiterMode.value = "auto";
     ui.headerMode.value = "auto";
     parseFromTextarea();
@@ -614,7 +700,7 @@ Clara; 0049 151 22233344 ; 2.000 ; 03/02/2025 ;`;
     ui.renameCols.value = "";
   }
 
-  // Wiring
+  // ---------- wiring ----------
   ui.btnParse.addEventListener("click", parseFromTextarea);
 
   ui.btnClear.addEventListener("click", () => {
@@ -671,7 +757,7 @@ Clara; 0049 151 22233344 ; 2.000 ; 03/02/2025 ;`;
   ui.btnCopyTSV.addEventListener("click", () => copyText(toDelimited(state.shaped, "\t")));
   ui.btnCopyJSON.addEventListener("click", () => copyText(toJSON(state.shaped)));
 
-  // Init
+  // ---------- init ----------
   resetRules();
   renderStats("—", "—", [], []);
   renderTable({ headers: [], rows: [] });
