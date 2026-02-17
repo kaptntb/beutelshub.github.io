@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Encoder / Decoder | Beutelshub Lab</title>
+
+  <link rel="stylesheet" href="../terminal.css">
+
+  <style>
+    .layout2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px;
+      margin-top:14px;
+    }
+
+    @media (max-width: 800px){
+      .layout2{ grid-template-columns:1fr; }
+    }
+
+    textarea{
+      width:100%;
+      min-height:280px;
+      resize:vertical;
+      padding:12px;
+      border-radius:12px;
+      border:1px solid rgba(56,255,122,.35);
+      background:rgba(0,0,0,.35);
+      color:var(--text);
+      font-family:var(--mono);
+      outline:none;
+    }
+
+    .btnrow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+
+    .mode{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-bottom:10px;
+    }
+
+    .mode button{
+      padding:8px 12px;
+      border-radius:999px;
+      background:rgba(0,0,0,.3);
+      border:1px solid rgba(56,255,122,.3);
+      color:var(--text);
+      cursor:pointer;
+    }
+
+    .mode button.active{
+      background:rgba(56,255,122,.15);
+      box-shadow:0 0 8px rgba(56,255,122,.4);
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="top">
+  <div class="brand">
+    <div class="logo"></div>
+    <div>
+      <h1>Beutelshub <span class="sub">Encoder / Decoder</span></h1>
+    </div>
+  </div>
+
+  <section class="hero" style="grid-template-columns:1fr;margin-top:14px;">
+    <div class="panel">
+      <div class="title">
+        <div>
+          <h2>Encode · Decode · Hash</h2>
+          <p>Alles lokal. Keine Uploads. Copy & Paste ready.</p>
+        </div>
+        <span class="badge" id="status">READY</span>
+      </div>
+
+      <div class="mode">
+        <button data-mode="base64" class="active">Base64</button>
+        <button data-mode="url">URL</button>
+        <button data-mode="sha256">SHA-256</button>
+      </div>
+
+    </div>
+  </section>
+
+</header>
+
+
+<main class="layout2">
+
+<section class="panel">
+
+<h3>Input</h3>
+
+<textarea id="input" placeholder="Text hier einfügen..."></textarea>
+
+<div class="btnrow">
+<button id="btn-encode">Encode</button>
+<button id="btn-decode">Decode</button>
+<button class="ghost" id="btn-clear">Clear</button>
+<button class="ghost" id="btn-copy-in">Copy</button>
+</div>
+
+</section>
+
+
+<section class="panel">
+
+<h3>Output</h3>
+
+<textarea id="output" placeholder="Ergebnis erscheint hier..."></textarea>
+
+<div class="btnrow">
+<button id="btn-copy-out">Copy</button>
+</div>
+
+</section>
+
+
+</main>
+
+</div>
+
+<script src="./app.js"></script>
+
+</body>
+</html>
