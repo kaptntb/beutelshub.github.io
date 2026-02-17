@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChatGPT Terminal</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="crt">
+    <header class="topbar">
+      <div class="brand">
+        <span class="pip">▣</span>
+        <span class="title">CHATGPT://TERMINAL</span>
+      </div>
+      <div class="status">
+        <span class="dot"></span>
+        <span>ONLINE</span>
+        <span class="sep">|</span>
+        <span id="clock">--:--:--</span>
+      </div>
+    </header>
+
+    <main class="shell" role="application" aria-label="Chat Terminal">
+      <section class="chatlog" id="chatlog" aria-live="polite">
+        <article class="msg assistant">
+          <div class="meta">ASSISTANT</div>
+          <div class="bubble">
+            Willkommen im Retro-Terminal. Tippe was, drück Enter, fühl dich wie in einem Röhrenmonitor. 🙂
+          </div>
+        </article>
+
+        <article class="msg user">
+          <div class="meta">USER</div>
+          <div class="bubble">
+            Zeig mir den Fallout-ChatGPT-Look!
+          </div>
+        </article>
+
+        <article class="msg assistant">
+          <div class="meta">ASSISTANT</div>
+          <div class="bubble">
+            Scanlines: aktiv. Phosphorgrün: aktiv. Nostalgie: maximal. Bitte nicht am Gehäuse lecken.
+          </div>
+        </article>
+      </section>
+
+      <section class="composer" aria-label="Eingabe">
+        <div class="promptline">
+          <span class="prompt">KAPT'N@TERMINAL:~$</span>
+          <input
+            id="input"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Nachricht eingeben …"
+            aria-label="Nachricht"
+          />
+        </div>
+
+        <div class="hint">
+          <span class="key">ENTER</span> senden
+          <span class="sep">•</span>
+          <span class="key">SHIFT</span> + <span class="key">ENTER</span> (dekorativ ignoriert 😄)
+          <span class="sep">•</span>
+          <span class="key">ESC</span> clear
+        </div>
+      </section>
+    </main>
+
+    <footer class="bottombar">
+      <span>VERSION 0.80-GREENPHOS</span>
+      <span class="sep">|</span>
+      <span>VAULT-UI MODE</span>
+      <span class="sep">|</span>
+      <span>NO NETWORK REQUIRED</span>
+    </footer>
+  </div>
+
+  <script>
+    const chatlog = document.getElementById("chatlog");
+    const input = document.getElementById("input");
+    const clock = document.getElementById("clock");
+
+    function pad(n){ return String(n).padStart(2,"0"); }
+    function tick(){
+      const d = new Date();
+      clock.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+    tick(); setInterval(tick, 1000);
+
+    function addMessage(role, text){
+      const article = document.createElement("article");
+      article.className = `msg ${role}`;
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = role.toUpperCase();
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
+
+      article.appendChild(meta);
+      article.appendChild(bubble);
+      chatlog.appendChild(article);
+
+      // autoscroll
+      chatlog.scrollTop = chatlog.scrollHeight;
+    }
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        // clear chatlog, keep first assistant message? -> wir leeren alles
+        chatlog.innerHTML = "";
+        addMessage("assistant", "Log gelöscht. Frisch gebootet. ✅");
+        input.value = "";
+        return;
+      }
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const text = input.value.trim();
+        if (!text) return;
+
+        addMessage("user", text);
+        input.value = "";
+
+        // Fake assistant response (nur Demo)
+        setTimeout(() => {
+          addMessage("assistant", `Empfangen: "${text}". (Demo-UI, keine echte API verbunden.)`);
+        }, 250);
+      }
+    });
+
+    // Fokus wie ein Terminal
+    window.addEventListener("click", () => input.focus());
+    input.focus();
+  </script>
+</body>
+</html>
