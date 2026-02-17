@@ -1,0 +1,86 @@
+/* ===== Terminal UI Controls (Password Forge) ===== */
+.field{ display:grid; gap:8px; margin-top:12px; }
+.label{
+  font-size:12px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color: rgba(183,255,183,.78);
+}
+
+input[type="text"], input[type="number"]{
+  width:100%;
+  padding:12px 14px;
+  border-radius: 12px;
+  border:1px solid rgba(56,255,122,.30);
+  background: rgba(0,0,0,.30);
+  color: var(--text);
+  font-family: var(--mono);
+  outline:none;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.45), 0 0 18px rgba(56,255,122,.06);
+}
+input[type="text"]::placeholder{ color: rgba(183,255,183,.55); }
+
+.btnrow{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+button{
+  padding:10px 12px;
+  border-radius: 999px;
+  border:1px solid rgba(56,255,122,.30);
+  background: rgba(56,255,122,.10);
+  color: rgba(183,255,183,.95);
+  font-family: var(--mono);
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  cursor:pointer;
+}
+button:hover{ border-color: rgba(56,255,122,.55); background: rgba(56,255,122,.14); }
+button.ghost{ background: rgba(0,0,0,.22); border-color: rgba(56,255,122,.22); }
+button.danger{ border-color: rgba(255,100,100,.35); color: rgba(255,170,170,.95); }
+
+.grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+@media (max-width: 720px){ .grid2{ grid-template-columns: 1fr; } }
+
+.checks{ display:grid; gap:8px; margin-top:8px; }
+.check{
+  display:flex; gap:10px; align-items:center;
+  padding:10px 12px;
+  border-radius: 12px;
+  border:1px solid rgba(56,255,122,.18);
+  background: rgba(0,0,0,.20);
+}
+.check input{ accent-color: var(--green); }
+
+.range{
+  display:grid; gap:8px;
+  padding:10px 12px;
+  border-radius: 12px;
+  border:1px solid rgba(56,255,122,.18);
+  background: rgba(0,0,0,.20);
+}
+input[type="range"]{ width:100%; accent-color: var(--green); }
+
+.out{
+  display:flex; gap:10px; align-items:center;
+  padding:12px 14px;
+  border-radius: 12px;
+  border:1px solid rgba(56,255,122,.30);
+  background: rgba(0,0,0,.30);
+}
+.out code{
+  font-family: var(--mono);
+  color: var(--text);
+  word-break: break-all;
+}
+.meter{
+  height:10px;
+  border-radius:999px;
+  border:1px solid rgba(56,255,122,.20);
+  background: rgba(0,0,0,.25);
+  overflow:hidden;
+}
+.meter > div{
+  height:100%;
+  width:0%;
+  background: rgba(56,255,122,.35);
+}
+
+.hint{ color: rgba(183,255,183,.70); font-size: 12px; }
