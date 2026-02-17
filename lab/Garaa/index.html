@@ -24,8 +24,8 @@
 
     <main class="shell" role="application" aria-label="Chat Terminal">
       <section class="chatlog" id="chatlog" aria-live="polite">
-        <article class="msg Garaa">
-          <div class="meta">Garaa</div>
+        <article class="msg GARAA">
+          <div class="meta">GARAA</div>
           <div class="bubble">
             Willkommen im Terminal. Tippe was, drück Enter, fühl dich wie in einem Röhrenmonitor.
           </div>
@@ -38,8 +38,8 @@
           </div>
         </article>
 
-        <article class="msg Garaa">
-          <div class="meta">Garaa</div>
+        <article class="msg GARAA">
+          <div class="meta">GARAA</div>
           <div class="bubble">
             Scanlines: aktiv. Phosphorgrün: aktiv. Nostalgie: maximal. Bitte nicht am Gehäuse lecken.
           </div>
@@ -112,9 +112,9 @@
 
     input.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
-        // clear chatlog, keep first Garaa message? -> wir leeren alles
+        // clear chatlog, keep first GARAA message? -> wir leeren alles
         chatlog.innerHTML = "";
-        addMessage("Garaa", "Log gelöscht. Frisch gebootet.");
+        addMessage("GARAA", "Log gelöscht. Frisch gebootet.");
         input.value = "";
         return;
       }
@@ -127,9 +127,9 @@
         addMessage("user", text);
         input.value = "";
 
-        // Fake Garaa response (nur Demo)
+        // Fake GARAA response (nur Demo)
         setTimeout(() => {
-          addMessage("Garaa", `Empfangen: "${text}". (Nachricht wird versendet..)`);
+          addMessage("GARAA", `Empfangen: "${text}". (Nachricht wird versendet..)`);
         }, 250);
       }
     });
