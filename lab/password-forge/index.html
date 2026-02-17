@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Password Forge | Beutelshub Lab</title>
+  <meta name="description" content="Passwort-Schmiede: Generator mit Regeln, Copy, Stärkeindikator." />
+  <link rel="stylesheet" href="../terminal.css" />
+</head>
+
+<body>
+  <div class="wrap">
+    <header class="top" id="top">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Beutelshub <span class="sub">Password Forge</span></h1>
+        </div>
+      </div>
+
+      <section class="hero">
+        <div class="panel">
+          <div class="title">
+            <div>
+              <h2>Passwort-Schmiede</h2>
+              <p>
+                Regeln rein, Passwort raus. Grün, hart, terminalig.
+              </p>
+            </div>
+            <span class="badge" id="statusBadge">READY</span>
+          </div>
+
+          <div class="field">
+            <div class="label">Ausgabe</div>
+            <div class="out">
+              <code id="out">…</code>
+              <button class="ghost" id="btn-copy" title="Kopieren">Copy</button>
+            </div>
+            <div class="meter" aria-label="Stärke">
+              <div id="meterFill"></div>
+            </div>
+            <div class="hint" id="strengthText">—</div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <div class="label">Länge: <span id="lenLabel">16</span></div>
+              <div class="range">
+                <input id="len" type="range" min="8" max="64" value="16" />
+                <div class="hint">8–64 Zeichen</div>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="label">Optionen</div>
+              <div class="checks">
+                <label class="check"><input id="opt-upper" type="checkbox" checked /> Großbuchstaben (A–Z)</label>
+                <label class="check"><input id="opt-lower" type="checkbox" checked /> Kleinbuchstaben (a–z)</label>
+                <label class="check"><input id="opt-num" type="checkbox" checked /> Zahlen (0–9)</label>
+                <label class="check"><input id="opt-sym" type="checkbox" checked /> Symbole (!@#…)</label>
+                <label class="check"><input id="opt-nolook" type="checkbox" /> Verwechselbares vermeiden (O/0, l/1…)</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="label">Sonderregeln</div>
+            <div class="checks">
+              <label class="check"><input id="opt-startletter" type="checkbox" /> Mit Buchstaben starten</label>
+              <label class="check"><input id="opt-requireall" type="checkbox" /> Mindestens 1 aus jeder gewählten Gruppe</label>
+            </div>
+            <div class="hint">Tipp: “Require all” macht Passwörter konsistenter für Webseitenregeln.</div>
+          </div>
+
+          <div class="btnrow">
+            <button id="btn-gen">Generate</button>
+            <button class="ghost" id="btn-gen-5">x5</button>
+            <button class="ghost" id="btn-download">Export .txt</button>
+            <a class="link" href="../">← zurück zum Lab</a>
+          </div>
+        </div>
+
+        <aside class="side">
+          <div class="mini">
+            <h3>Hinweise</h3>
+            <p>
+              Generator läuft komplett lokal im Browser. Kein Backend, kein Tracking.
+            </p>
+            <div class="row">
+              <span class="pill"><strong>Mode:</strong> Terminal</span>
+              <span class="pill"><strong>Copy:</strong> Clipboard</span>
+            </div>
+          </div>
+
+          <div class="mini">
+            <h3>Preset</h3>
+            <p class="hint">Ein Klick, andere Regeln.</p>
+            <div class="btnrow">
+              <button class="ghost" id="preset-safe">SAFE</button>
+              <button class="ghost" id="preset-max">MAX</button>
+              <button class="ghost" id="preset-words">WORDS</button>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </header>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
