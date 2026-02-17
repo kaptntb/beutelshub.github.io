@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Data Shaper | Beutelshub Lab</title>
+  <meta name="description" content="CSV/XLSX Begradiger (lokal im Browser): paste rein, Vorschau raus, Copy statt Upload." />
+  <link rel="stylesheet" href="../terminal.css" />
+
+  <style>
+    /* Kleine Layout-Ergänzungen fürs Tool */
+    .layout3{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr 1.2fr;
+      gap: 14px;
+      align-items:start;
+      margin-top: 14px;
+    }
+    @media (max-width: 980px){ .layout3{ grid-template-columns: 1fr; } }
+
+    .box{
+      border:1px solid rgba(56,255,122,.22);
+      background: rgba(0,0,0,.22);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    textarea{
+      width:100%;
+      min-height: 320px;
+      resize: vertical;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border:1px solid rgba(56,255,122,.30);
+      background: rgba(0,0,0,.30);
+      color: var(--text);
+      font-family: var(--mono);
+      outline:none;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.45), 0 0 18px rgba(56,255,122,.06);
+    }
+
+    .smallrow{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; }
+    .kvs{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .kv{ font-size:12px; letter-spacing:.10em; color: rgba(183,255,183,.80); }
+    .kv b{ color: rgba(183,255,183,.98); }
+
+    select{
+      padding:10px 12px;
+      border-radius: 999px;
+      border:1px solid rgba(56,255,122,.30);
+      background: rgba(0,0,0,.30);
+      color: rgba(183,255,183,.95);
+      font-family: var(--mono);
+      letter-spacing:.08em;
+    }
+
+    .tableWrap{
+      overflow:auto;
+      max-height: 420px;
+      border-radius: 14px;
+      border:1px solid rgba(56,255,122,.22);
+      background: rgba(0,0,0,.18);
+    }
+    table{
+      width:100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td{
+      border-bottom:1px solid rgba(56,255,122,.16);
+      padding: 8px 10px;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    th{
+      position: sticky;
+      top: 0;
+      background: rgba(0,0,0,.55);
+      color: rgba(183,255,183,.95);
+      letter-spacing:.12em;
+      text-transform: uppercase;
+      font-size: 12px;
+    }
+    td{ color: rgba(183,255,183,.85); }
+    .muted2{ color: rgba(183,255,183,.70); font-size: 12px; }
+
+    .warn{
+      border-color: rgba(255,180,80,.35) !important;
+      color: rgba(255,220,170,.95) !important;
+    }
+  </style>
+
+  <!-- XLSX optional (SheetJS). Lädt nur, wenn du XLSX nutzt. -->
+  <script>
+    window.__loadXLSX = function(){
+      return new Promise((resolve, reject) => {
+        if (window.XLSX) return resolve();
+        const s = document.createElement('script');
+        s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("XLSX Lib konnte nicht geladen werden (offline?)"));
+        document.head.appendChild(s);
+      });
+    }
+  </script>
+</head>
+
+<body>
+  <div class="wrap">
+    <header class="top" id="top">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Beutelshub <span class="sub">Data Shaper</span></h1>
+        </div>
+      </div>
+
+      <section class="hero" style="grid-template-columns: 1fr; margin-top:14px;">
+        <div class="panel">
+          <div class="title">
+            <div>
+              <h2>CSV/XLSX Begradiger (local)</h2>
+              <p>
+                Paste rein → Regeln wählen → Vorschau + Copy. Keine Uploads. XLSX optional via lokale Datei (bleibt im Browser).
+              </p>
+            </div>
+            <span class="badge" id="badge">READY</span>
+          </div>
+
+          <div class="smallrow">
+            <div class="kvs">
+              <div class="kv">Format: <b id="fmt">—</b></div>
+              <div class="kv">Zeilen: <b id="rows">0</b></div>
+              <div class="kv">Spalten: <b id="cols">0</b></div>
+              <div class="kv">Delimiter: <b id="delim">—</b></div>
+            </div>
+            <div class="kvs">
+              <label class="kv">Preview
+                <select id="previewLimit" title="Anzahl Vorschauzeilen">
+                  <option value="50">50</option>
+                  <option value="100" selected>100</option>
+                  <option value="200">200</option>
+                  <option value="500">500</option>
+                </select>
+              </label>
+              <a class="link" href="../">← zurück zum Lab</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </header>
+
+    <main class="layout3">
+      <!-- INPUT -->
+      <section class="panel">
+        <div class="title">
+          <div>
+            <h2>Input</h2>
+            <p class="muted2">CSV/TSV/Text reinkopieren oder XLSX lokal auswählen.</p>
+          </div>
+          <span class="badge" id="inBadge">PASTE</span>
+        </div>
+
+        <div class="box">
+          <div class="smallrow" style="margin-bottom:10px;">
+            <div class="kvs">
+              <button id="btn-parse" class="">Parse</button>
+              <button id="btn-clear" class="ghost">Clear</button>
+            </div>
+
+            <div class="kvs">
+              <label class="kv">Delimiter
+                <select id="delimiterMode" title="Delimiter Modus">
+                  <option value="auto" selected>auto</option>
+                  <option value=",">,</option>
+                  <option value=";">;</option>
+                  <option value="tab">TAB</option>
+                  <option value="|">|</option>
+                </select>
+              </label>
+              <label class="kv">Header
+                <select id="headerMode" title="Header Modus">
+                  <option value="auto" selected>auto</option>
+                  <option value="yes">ja</option>
+                  <option value="no">nein</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <textarea id="input" spellcheck="false" placeholder="CSV/TSV hier reinpasten..."></textarea>
+
+          <div class="smallrow" style="margin-top:10px;">
+            <div class="kvs">
+              <input id="xlsxFile" type="file" accept=".xlsx,.xls" />
+              <span class="muted2">XLSX bleibt lokal (kein Upload).</span>
+            </div>
+            <div class="kvs">
+              <button class="ghost" id="btn-sample">Sample</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="muted2" id="err" style="margin-top:10px;"></p>
+      </section>
+
+      <!-- RULES -->
+      <section class="panel">
+        <div class="title">
+          <div>
+            <h2>Regeln</h2>
+            <p class="muted2">Schalte Begradigungen an/aus. Alles live in der Vorschau.</p>
+          </div>
+          <span class="badge" id="rulesBadge">PIPELINE</span>
+        </div>
+
+        <div class="box">
+          <div class="checks">
+            <label class="check"><input id="r-trim" type="checkbox" checked /> Trim (Zellen + Header)</label>
+            <label class="check"><input id="r-drop-empty-rows" type="checkbox" checked /> Leere Zeilen entfernen</label>
+            <label class="check"><input id="r-drop-empty-cols" type="checkbox" /> Leere Spalten entfernen</label>
+            <label class="check"><input id="r-dedupe-cols" type="checkbox" checked /> Doppelte Header eindeutigen (name_2…)</label>
+            <label class="check"><input id="r-normalize-headers" type="checkbox" checked /> Header normalisieren (snake_case)</label>
+            <label class="check"><input id="r-fix-numbers" type="checkbox" /> Zahlen normalisieren (1.234,56 → 1234.56)</label>
+            <label class="check"><input id="r-fix-dates" type="checkbox" /> Datum erkennen (DD.MM.YYYY etc → YYYY-MM-DD)</label>
+          </div>
+
+          <div class="grid2" style="margin-top:12px;">
+            <div class="field">
+              <div class="label">Spalten behalten (optional)</div>
+              <input id="keepCols" type="text" placeholder="z.B. id,name,amount,date" />
+              <div class="hint">Leer lassen = alle. Komma-separiert, nach Normalisierung.</div>
+            </div>
+            <div class="field">
+              <div class="label">Spalten umbenennen (optional)</div>
+              <input id="renameCols" type="text" placeholder="z.B. vorname:first_name, summe:amount" />
+              <div class="hint">Format: alt:neu, alt2:neu2</div>
+            </div>
+          </div>
+
+          <div class="btnrow" style="margin-top:12px;">
+            <button id="btn-apply">Apply</button>
+            <button class="ghost" id="btn-reset-rules">Reset Regeln</button>
+          </div>
+        </div>
+
+        <div class="box" style="margin-top:12px;">
+          <div class="label">Output Copy</div>
+          <div class="btnrow">
+            <button class="ghost" id="btn-copy-csv">Copy CSV</button>
+            <button class="ghost" id="btn-copy-tsv">Copy TSV</button>
+            <button class="ghost" id="btn-copy-json">Copy JSON</button>
+          </div>
+          <div class="hint" id="copyHint">—</div>
+        </div>
+      </section>
+
+      <!-- PREVIEW -->
+      <section class="panel">
+        <div class="title">
+          <div>
+            <h2>Vorschau</h2>
+            <p class="muted2">Erste Zeilen nach Transformation. (Kein Download nötig.)</p>
+          </div>
+          <span class="badge" id="outBadge">PREVIEW</span>
+        </div>
+
+        <div class="box">
+          <div class="tableWrap" id="tableWrap">
+            <table id="tbl"></table>
+          </div>
+          <p class="muted2" style="margin-top:10px;" id="previewNote">—</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
