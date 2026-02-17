@@ -1,136 +1,151 @@
 (() => {
+  "use strict";
 
-const $ = id => document.getElementById(id);
+  const $ = (id) => document.getElementById(id);
 
-const input = $("input");
-const output = $("output");
-const status = $("status");
+  const input = $("input");
+  const output = $("output");
+  const status = $("status");
 
-const btnEncode = $("btn-encode");
-const btnDecode = $("btn-decode");
-const btnClear = $("btn-clear");
+  const btnEncode = $("btn-encode");
+  const btnDecode = $("btn-decode");
+  const btnClear  = $("btn-clear");
 
-const btnCopyIn = $("btn-copy-in");
-const btnCopyOut = $("btn-copy-out");
+  const btnCopyIn  = $("btn-copy-in");
+  const btnCopyOut = $("btn-copy-out");
 
-let mode = "base64";
+  let mode = "base64";
 
+  // Mode buttons
+  const modeButtons = Array.from(document.querySelectorAll("[data-mode]"));
+  modeButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      modeButtons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      mode = btn.dataset.mode || "base64";
+      status.textContent = mode.toUpperCase();
+    });
+  });
 
-// mode buttons
-document.querySelectorAll("[data-mode]").forEach(btn => {
+  // Helpers: Base64 (UTF-8 safe)
+  function b64EncodeUtf8(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+  function b64DecodeUtf8(b64) {
+    return decodeURIComponent(escape(atob(b64)));
+  }
 
-    btn.onclick = () => {
+  // Generic hash
+  async function hash(text, algo) {
+    const buf = new TextEncoder().encode(text);
+    const digest = await crypto.subtle.digest(algo, buf);
+    return [...new Uint8Array(digest)]
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
 
-        document.querySelectorAll("[data-mode]")
-        .forEach(b => b.classList.remove("active"));
+  async function copy(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      status.textContent = "COPIED";
+    } catch {
+      status.textContent = "COPY FAILED";
+    }
+  }
 
-        btn.classList.add("active");
+  function setError() {
+    status.textContent = "ERROR";
+  }
 
-        mode = btn.dataset.mode;
+  // Encode
+  btnEncode.addEventListener("click", async () => {
+    try {
+      const text = input.value ?? "";
 
-        status.textContent = mode.toUpperCase();
-
-    };
-
-});
-
-
-// encode
-btnEncode.onclick = async () => {
-
-    try{
-
-        const text = input.value;
-
-        if(mode === "base64")
-            output.value = btoa(unescape(encodeURIComponent(text)));
-
-        if(mode === "url")
-            output.value = encodeURIComponent(text);
-
-        if(mode === "sha256")
-            output.value = await sha256(text);
-
+      if (mode === "base64") {
+        output.value = b64EncodeUtf8(text);
         status.textContent = "ENCODED";
+        return;
+      }
 
-    }catch(e){
+      if (mode === "url") {
+        output.value = encodeURIComponent(text);
+        status.textContent = "ENCODED";
+        return;
+      }
 
-        status.textContent = "ERROR";
+      if (mode === "sha1") {
+        output.value = await hash(text, "SHA-1");
+        status.textContent = "HASHED";
+        return;
+      }
 
+      if (mode === "sha256") {
+        output.value = await hash(text, "SHA-256");
+        status.textContent = "HASHED";
+        return;
+      }
+
+      if (mode === "sha384") {
+        output.value = await hash(text, "SHA-384");
+        status.textContent = "HASHED";
+        return;
+      }
+
+      if (mode === "sha512") {
+        output.value = await hash(text, "SHA-512");
+        status.textContent = "HASHED";
+        return;
+      }
+
+      // Fallback
+      output.value = "Unknown mode";
+      setError();
+    } catch {
+      setError();
     }
+  });
 
-};
+  // Decode
+  btnDecode.addEventListener("click", () => {
+    try {
+      const text = input.value ?? "";
 
-
-// decode
-btnDecode.onclick = () => {
-
-    try{
-
-        const text = input.value;
-
-        if(mode === "base64")
-            output.value = decodeURIComponent(escape(atob(text)));
-
-        if(mode === "url")
-            output.value = decodeURIComponent(text);
-
-        if(mode === "sha256")
-            output.value = "Hash kann nicht decodiert werden";
-
+      if (mode === "base64") {
+        output.value = b64DecodeUtf8(text);
         status.textContent = "DECODED";
+        return;
+      }
 
-    }catch(e){
+      if (mode === "url") {
+        output.value = decodeURIComponent(text);
+        status.textContent = "DECODED";
+        return;
+      }
 
-        status.textContent = "ERROR";
+      // Hashes are one-way
+      if (mode.startsWith("sha")) {
+        output.value = "Hash kann nicht decodiert werden";
+        status.textContent = "NO-DECODE";
+        return;
+      }
 
+      output.value = "Unknown mode";
+      setError();
+    } catch {
+      setError();
     }
+  });
 
-};
-
-
-// clear
-btnClear.onclick = () => {
-
+  // Clear
+  btnClear.addEventListener("click", () => {
     input.value = "";
     output.value = "";
+    status.textContent = "READY";
+  });
 
-};
-
-
-// copy
-btnCopyIn.onclick = () => copy(input.value);
-btnCopyOut.onclick = () => copy(output.value);
-
-
-async function copy(text){
-
-    try{
-
-        await navigator.clipboard.writeText(text);
-        status.textContent = "COPIED";
-
-    }catch{
-
-        status.textContent = "COPY FAILED";
-
-    }
-
-}
-
-
-// SHA256
-async function sha256(text){
-
-    const buf = new TextEncoder().encode(text);
-
-    const hash = await crypto.subtle.digest("SHA-256", buf);
-
-    return [...new Uint8Array(hash)]
-    .map(b => b.toString(16).padStart(2,"0"))
-    .join("");
-
-}
-
+  // Copy
+  btnCopyIn.addEventListener("click", () => copy(input.value ?? ""));
+  btnCopyOut.addEventListener("click", () => copy(output.value ?? ""));
 
 })();
