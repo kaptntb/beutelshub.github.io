@@ -323,4 +323,332 @@
 
     if (doTrim) {
       headers = headers.map(h => trimCell(h));
-      r
+      rows = rows.map(r => r.map(c => trimCell(c)));
+    }
+
+    // header normalize first (before rename/keep)
+    if (normalizeHeaders) {
+      headers = headers.map(h => snakeCaseHeader(h));
+    }
+
+    if (dedupeCols) {
+      headers = dedupeHeaders(headers);
+    }
+
+    // rename map applies after normalize
+    const renameMap = parseRenameMap(ui.renameCols.value);
+    if (renameMap.size) {
+      headers = headers.map(h => renameMap.get(h) || h);
+    }
+
+    // keep columns (after rename)
+    const keep = parseKeepList(ui.keepCols.value);
+    if (keep && keep.length) {
+      const idxs = [];
+      const newHeaders = [];
+      for (const k of keep) {
+        const i = headers.indexOf(k);
+        if (i >= 0) {
+          idxs.push(i);
+          newHeaders.push(headers[i]);
+        }
+      }
+      headers = newHeaders;
+      rows = rows.map(r => idxs.map(i => r[i] ?? ""));
+    }
+
+    if (dropEmptyRows) {
+      rows = rows.filter(r => !isRowEmpty(r));
+    }
+
+    if (dropEmptyCols && headers.length) {
+      const keepIdx = [];
+      for (let i = 0; i < headers.length; i++) {
+        if (!isColEmpty(rows, i)) keepIdx.push(i);
+      }
+      headers = keepIdx.map(i => headers[i]);
+      rows = rows.map(r => keepIdx.map(i => r[i] ?? ""));
+    }
+
+    if (fixNumbers || fixDates) {
+      rows = rows.map(r => r.map(v => {
+        let x = norm(v);
+        if (doTrim) x = x.trim();
+        if (fixNumbers) x = normalizeNumber(x);
+        if (fixDates) x = normalizeDate(x);
+        return x;
+      }));
+    }
+
+    return { headers, rows };
+  }
+
+  function toDelimited(data, delimiter) {
+    const d = delimiter;
+    const esc = (v) => {
+      const s = norm(v);
+      const needs = s.includes('"') || s.includes("\n") || s.includes("\r") || s.includes(d);
+      if (!needs) return s;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+
+    const lines = [];
+    lines.push(data.headers.map(esc).join(d));
+    for (const r of data.rows) {
+      lines.push(r.map(esc).join(d));
+    }
+    return lines.join("\n");
+  }
+
+  function toJSON(data) {
+    const out = [];
+    for (const r of data.rows) {
+      const obj = {};
+      data.headers.forEach((h, i) => {
+        obj[h] = r[i] ?? "";
+      });
+      out.push(obj);
+    }
+    return JSON.stringify(out, null, 2);
+  }
+
+  function renderStats(format, delimiter, headers, rows) {
+    ui.fmt.textContent = format;
+    ui.delim.textContent = delimiter === "\t" ? "TAB" : delimiter;
+    ui.cols.textContent = String(headers.length);
+    ui.rows.textContent = String(rows.length);
+  }
+
+  function renderTable(data) {
+    const limit = Number(ui.previewLimit.value);
+    const headers = data.headers;
+    const rows = data.rows.slice(0, limit);
+
+    ui.tbl.innerHTML = "";
+
+    if (!headers.length) {
+      ui.previewNote.textContent = "Keine Daten geparst. Paste CSV/TSV oder lade XLSX.";
+      return;
+    }
+
+    const thead = document.createElement("thead");
+    const trh = document.createElement("tr");
+    for (const h of headers) {
+      const th = document.createElement("th");
+      th.textContent = h;
+      trh.appendChild(th);
+    }
+    thead.appendChild(trh);
+
+    const tbody = document.createElement("tbody");
+    for (const r of rows) {
+      const tr = document.createElement("tr");
+      for (let i = 0; i < headers.length; i++) {
+        const td = document.createElement("td");
+        td.textContent = r[i] ?? "";
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+
+    ui.tbl.appendChild(thead);
+    ui.tbl.appendChild(tbody);
+
+    ui.previewNote.textContent =
+      `Preview zeigt ${rows.length} von ${data.rows.length} Zeilen. Output per Copy-Buttons (kein Download nötig).`;
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      ui.copyHint.textContent = "Copied ✅";
+      setBadge("COPIED");
+      setTimeout(() => setBadge("READY"), 650);
+    } catch {
+      ui.copyHint.textContent = "Clipboard nicht verfügbar (Browser/HTTPS?). Du kannst trotzdem im Output markieren & kopieren.";
+      setBadge("NOCLIP", "warn");
+      setTimeout(() => setBadge("READY"), 900);
+    }
+  }
+
+  function parseFromTextarea() {
+    setError("");
+    const t = ui.input.value || "";
+    if (!t.trim()) {
+      state.raw = { headers: [], rows: [] };
+      state.shaped = { headers: [], rows: [] };
+      renderStats("—", "—", [], []);
+      renderTable(state.shaped);
+      return;
+    }
+
+    const mode = ui.delimiterMode.value;
+    const headerMode = ui.headerMode.value;
+
+    let delim = ",";
+    if (mode === "auto") delim = detectDelimiter(t);
+    else if (mode === "tab") delim = "\t";
+    else delim = mode;
+
+    const parsed = parseDelimited(t, delim, headerMode);
+    state.raw = { headers: parsed.headers, rows: parsed.rows };
+    state.headerUsed = parsed.headerUsed;
+    state.format = "CSV/TSV";
+    state.delimiter = delim;
+
+    applyAndRender();
+  }
+
+  function applyAndRender() {
+    setError("");
+    try {
+      state.shaped = applyPipeline(state.raw);
+      renderStats(state.format, state.delimiter, state.shaped.headers, state.shaped.rows);
+      renderTable(state.shaped);
+      ui.inBadge.textContent = state.format === "XLSX" ? "XLSX" : "PASTE";
+      ui.outBadge.textContent = "PREVIEW";
+    } catch (e) {
+      setError(e?.message || String(e));
+    }
+  }
+
+  async function parseXLSX(file) {
+    setError("");
+    if (!file) return;
+
+    try {
+      ui.inBadge.textContent = "XLSX…";
+      setBadge("LOADING");
+      await window.__loadXLSX();
+
+      const buf = await file.arrayBuffer();
+      const wb = window.XLSX.read(buf, { type: "array" });
+
+      // choose first sheet
+      const first = wb.SheetNames[0];
+      const ws = wb.Sheets[first];
+
+      // sheet_to_json with header:1 yields array-of-arrays
+      const aoa = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+      // remove empty trailing rows
+      while (aoa.length && isRowEmpty(aoa[aoa.length - 1].map(String))) aoa.pop();
+      if (!aoa.length) throw new Error("XLSX Sheet ist leer.");
+
+      // normalize row lengths
+      const maxLen = Math.max(...aoa.map(r => r.length));
+      const rows = aoa.map(r => {
+        const rr = r.map(v => (v === null || v === undefined) ? "" : String(v));
+        while (rr.length < maxLen) rr.push("");
+        return rr;
+      });
+
+      // header mode rules apply here too
+      let headerUsed = true;
+      if (ui.headerMode.value === "no") headerUsed = false;
+      if (ui.headerMode.value === "yes") headerUsed = true;
+      if (ui.headerMode.value === "auto") headerUsed = guessHeader(rows);
+
+      let headers, body;
+      if (headerUsed) {
+        headers = rows[0].map((h, i) => trimCell(h) || `col_${i + 1}`);
+        body = rows.slice(1);
+      } else {
+        headers = Array.from({ length: maxLen }, (_, i) => `col_${i + 1}`);
+        body = rows;
+      }
+
+      state.raw = { headers, rows: body };
+      state.format = "XLSX";
+      state.delimiter = ","; // for stats only
+      state.headerUsed = headerUsed;
+
+      applyAndRender();
+      setBadge("READY");
+    } catch (e) {
+      setError(e?.message || String(e));
+      setBadge("ERROR", "warn");
+    }
+  }
+
+  function sampleCSV() {
+    ui.input.value =
+`Name;Summe;Datum;Kommentar
+  Alice ; 1.234,56 ; 12.01.2025 ; " ok "
+Bob; 99,5 ; 2025-02-03 ; "hi"
+;;;
+Clara; 2.000 ; 03/02/2025 ;`;
+    ui.delimiterMode.value = "auto";
+    ui.headerMode.value = "auto";
+    parseFromTextarea();
+  }
+
+  function resetRules() {
+    ui.rTrim.checked = true;
+    ui.rDropEmptyRows.checked = true;
+    ui.rDropEmptyCols.checked = false;
+    ui.rDedupeCols.checked = true;
+    ui.rNormalizeHeaders.checked = true;
+    ui.rFixNumbers.checked = false;
+    ui.rFixDates.checked = false;
+    ui.keepCols.value = "";
+    ui.renameCols.value = "";
+  }
+
+  // Wiring
+  ui.btnParse.addEventListener("click", parseFromTextarea);
+  ui.btnClear.addEventListener("click", () => {
+    ui.input.value = "";
+    ui.xlsxFile.value = "";
+    setError("");
+    state.raw = { headers: [], rows: [] };
+    state.shaped = { headers: [], rows: [] };
+    renderStats("—", "—", [], []);
+    renderTable(state.shaped);
+    setBadge("READY");
+  });
+
+  ui.btnSample.addEventListener("click", sampleCSV);
+
+  ui.input.addEventListener("input", () => {
+    // light auto-parse after small pause
+    window.clearTimeout(window.__ds_t);
+    window.__ds_t = window.setTimeout(parseFromTextarea, 250);
+  });
+
+  ui.previewLimit.addEventListener("change", () => renderTable(state.shaped));
+  ui.delimiterMode.addEventListener("change", parseFromTextarea);
+  ui.headerMode.addEventListener("change", parseFromTextarea);
+
+  ui.btnApply.addEventListener("click", applyAndRender);
+  ui.btnResetRules.addEventListener("click", () => { resetRules(); applyAndRender(); });
+
+  [
+    ui.rTrim, ui.rDropEmptyRows, ui.rDropEmptyCols, ui.rDedupeCols,
+    ui.rNormalizeHeaders, ui.rFixNumbers, ui.rFixDates
+  ].forEach(x => x.addEventListener("change", applyAndRender));
+
+  ui.keepCols.addEventListener("input", () => {
+    window.clearTimeout(window.__ds_k);
+    window.__ds_k = window.setTimeout(applyAndRender, 300);
+  });
+  ui.renameCols.addEventListener("input", () => {
+    window.clearTimeout(window.__ds_r);
+    window.__ds_r = window.setTimeout(applyAndRender, 300);
+  });
+
+  ui.xlsxFile.addEventListener("change", (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) parseXLSX(f);
+  });
+
+  ui.btnCopyCSV.addEventListener("click", () => copyText(toDelimited(state.shaped, ",")));
+  ui.btnCopyTSV.addEventListener("click", () => copyText(toDelimited(state.shaped, "\t")));
+  ui.btnCopyJSON.addEventListener("click", () => copyText(toJSON(state.shaped)));
+
+  // Init
+  resetRules();
+  renderStats("—", "—", [], []);
+  renderTable({ headers: [], rows: [] });
+  setBadge("READY");
+})();
